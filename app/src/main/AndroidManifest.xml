@@ -13,7 +13,22 @@
         android:theme="@style/Theme.First_Project">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".activity.MainActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false">
+        </activity>
+
+        <activity
+            android:name=".activity.SecondActivity"
+            android:exported="false" />
+
+        <activity android:name=".activity.ThirdActivity" android:exported="false" />
+        <activity
+            android:name=".activity.RegistrationActivity" android:exported="false" >
+        </activity>
+
+        <activity
+            android:name=".activity.SplashActivity"
             android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
@@ -22,12 +37,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".SecondActivity"
-            android:exported="false" />
-
-        <activity android:name=".ThirdActivity" android:exported="false" />
-        <activity android:name=".RegistrationActivity" android:exported="false"/>
 
     </application>
 

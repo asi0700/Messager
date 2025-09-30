@@ -1,4 +1,4 @@
-package com.example.first_project;
+package com.example.first_project.activity;
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;
@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.first_project.R;
 import com.example.first_project.adapter.MessageAdapter;
 import com.example.first_project.model.Message;
 

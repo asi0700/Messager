@@ -8,7 +8,7 @@ public class Message {
     private String text;
     private long timestamp;
 
-
+    public Message(){}
     public Message(String sender, String text) {
         this.sender = sender;
         this.text = text;

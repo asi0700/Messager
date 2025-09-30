@@ -13,7 +13,7 @@
         android:padding="24dp"
         android:gravity="center">
 
-        <!-- Логотип или заголовок -->
+        <!-- Логотип -->
         <ImageView
             android:layout_width="120dp"
             android:layout_height="120dp"
@@ -28,7 +28,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Создать аккаунт"
+            android:text="Войти в аккаунт"
             android:textSize="28sp"
             android:textStyle="bold"
             android:textColor="@android:color/white"
@@ -38,7 +38,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Присоединяйтесь к нашему мессенджеру"
+            android:text="Рады видеть вас снова"
             android:textSize="16sp"
             android:textColor="#B3FFFFFF"
             android:layout_marginBottom="40dp"
@@ -51,11 +51,10 @@
             android:orientation="vertical"
             android:background="@drawable/input_container_background"
             android:padding="24dp"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="16dp">
 
-            <!-- Поле Email или номер телефона -->
+            <!-- Email или телефон -->
             <com.google.android.material.textfield.TextInputLayout
-
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
@@ -72,11 +71,11 @@
                 app:startIconTint="#4CAF50">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextEmail"
+                    android:id="@+id/editTextLoginEmail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint=" Email или номер телефона"
-                    android:inputType="text"
+                    android:hint="Email или номер телефона"
+                    android:inputType="textEmailAddress"
                     android:textColor="@android:color/white"
                     android:textColorHint="#B3FFFFFF"
                     android:textSize="16sp"
@@ -84,12 +83,10 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Поле пароля -->
+            <!-- Пароль -->
             <com.google.android.material.textfield.TextInputLayout
-
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
                 app:boxBackgroundMode="outline"
                 app:boxBackgroundColor="@android:color/transparent"
                 app:boxStrokeColor="#4CAF50"
@@ -105,7 +102,7 @@
                 app:endIconTint="#4CAF50">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextPassword"
+                    android:id="@+id/editTextLoginPassword"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="Пароль"
@@ -117,47 +114,27 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Поле подтверждения пароля -->
-            <com.google.android.material.textfield.TextInputLayout
-
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                app:boxBackgroundMode="outline"
-                app:boxBackgroundColor="@android:color/transparent"
-                app:boxStrokeColor="#4CAF50"
-                app:boxStrokeWidth="2dp"
-                app:boxCornerRadiusTopStart="16dp"
-                app:boxCornerRadiusTopEnd="16dp"
-                app:boxCornerRadiusBottomStart="16dp"
-                app:boxCornerRadiusBottomEnd="16dp"
-                app:hintTextColor="#4CAF50"
-                app:startIconDrawable="@drawable/ic_lock"
-                app:startIconTint="#4CAF50"
-                app:endIconMode="password_toggle"
-                app:endIconTint="#4CAF50">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextConfirmPassword"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Подтвердите пароль"
-                    android:inputType="textPassword"
-                    android:textColor="@android:color/white"
-                    android:textColorHint="#B3FFFFFF"
-                    android:textSize="16sp"
-                    android:fontFamily="sans-serif" />
-
-            </com.google.android.material.textfield.TextInputLayout>
-
         </LinearLayout>
 
-        <!-- Кнопка регистрации -->
+        <!-- Ссылка Забыли пароль -->
+        <TextView
+            android:id="@+id/textForgotPassword"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Забыли пароль?"
+            android:textColor="#4CAF50"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="8dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Кнопка Войти -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonRegister"
+            android:id="@+id/buttonLogin"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="Зарегистрироваться"
+            android:text="Войти"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="@android:color/white"
@@ -165,10 +142,41 @@
             app:backgroundTint="#4CAF50"
             app:cornerRadius="28dp"
             app:elevation="8dp"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="16dp"
             android:paddingHorizontal="16dp" />
 
-        <!-- Ссылка на вход -->
+        <!-- Разделитель -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginVertical="8dp">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#33FFFFFF" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="или"
+                android:textColor="#B3FFFFFF"
+                android:textSize="14sp"
+                android:paddingHorizontal="12dp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#33FFFFFF" />
+        </LinearLayout>
+
+
+
+        <!-- Ссылка на регистрацию -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -178,26 +186,24 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Уже есть аккаунт? "
+                android:text="Нет аккаунта? "
                 android:textColor="#B3FFFFFF"
                 android:textSize="16sp"
                 android:fontFamily="sans-serif" />
 
             <TextView
-                android:id="@+id/link_login"
+                android:id="@+id/textGoToRegister"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Войти"
+                android:text="Создать"
                 android:textColor="#4CAF50"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:fontFamily="sans-serif-medium"
                 android:background="?android:attr/selectableItemBackground"
                 android:padding="8dp" />
-
         </LinearLayout>
 
-        <!-- Дополнительное пространство внизу -->
         <View
             android:layout_width="match_parent"
             android:layout_height="40dp" />

@@ -1,9 +1,7 @@
-package com.example.first_project;
+package com.example.first_project.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
@@ -14,8 +12,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.first_project.R;
 import com.example.first_project.adapter.MessageAdapter;
 import com.example.first_project.model.Message;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,17 +25,21 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "Start";
 
-
     private RecyclerView recyclerView;
     private MessageAdapter adapter;
     private EditText editMessage;
     private List<Message> messages = new ArrayList<>();
+
+    // работа с Firestore(Firebase)
+    private FirebaseFirestore db;
+    private CollectionReference messageRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
 
 
         Log.d(TAG, "onCreate: Activityyy created");
@@ -58,26 +64,49 @@ public class MainActivity extends AppCompatActivity {
 
         //intentToSecond.putExtra("user_name", "Asror");
 
+        db = FirebaseFirestore.getInstance();
+        messageRef = db.collection("messages");
+
+        messageRef.orderBy("timestamp", Query.Direction.ASCENDING)
+                .addSnapshotListener((snapshot,  error ) -> {
+                    if (error != null) {
+                        Log.w(TAG, "Ошибка Firestore", error);
+                        return;
+                    }
+
+                    messages.clear();
+                    for (var document : snapshot) {
+                        Message msg = document.toObject(Message.class);
+                        messages.add(msg);
+                    }
+
+                    adapter.notifyDataSetChanged();
+                    if (!messages.isEmpty()) {
+                        recyclerView.scrollToPosition(messages.size() -1);
+                    }
+
+                });
+
 
         btnSend.setOnClickListener(v -> {
             String text = editMessage.getText().toString().trim();
             if (!text.isEmpty()) {
                 Message msg = new Message("You", text);
-                adapter.addMessage(msg);
+                messageRef.add(msg);
                 editMessage.setText("");
-                recyclerView.scrollToPosition(adapter.getItemCount() -1);
+//                recyclerView.scrollToPosition(adapter.getItemCount() -1);
             }
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                if (text.equals("Привет")){
-                    Message reply = new Message("Friend", "Привет!");
-                    adapter.addMessage(reply);
-                    recyclerView.scrollToPosition(adapter.getItemCount() -1);
-                } else {
-                    Message reply = new Message("Friend", "Давай, всё иди ");
-                    adapter.addMessage(reply);
-                    recyclerView.scrollToPosition(adapter.getItemCount()-1);
-                }
-            }, 2000 );
+//            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+//                if (text.equals("Привет")){
+//                    Message reply = new Message("Friend", "Привет!");
+//                    adapter.addMessage(reply);
+//                    recyclerView.scrollToPosition(adapter.getItemCount() -1);
+//                } else {
+//                    Message reply = new Message("Friend", "Давай, всё иди ");
+//                    adapter.addMessage(reply);
+//                    recyclerView.scrollToPosition(adapter.getItemCount()-1);
+//                }
+//            }, 2000 );
         });
 
         Button btn_Back = findViewById(R.id.btn_Back);
@@ -86,11 +115,13 @@ public class MainActivity extends AppCompatActivity {
 
         btn_Back.setOnClickListener(v -> {
             startActivity(intentToRegistration);
+            finish();
         });
 //
 //        btnThrid.setOnClickListener(v ->{
 //            startActivity(intentToThird);
 //        });
+
 
     }
 
