@@ -1,42 +1,50 @@
-<FrameLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp" >
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
 
     <LinearLayout
         android:id="@+id/messageBubbleContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_gravity="start">
-    
+        android:orientation="vertical">
+
         <TextView
             android:id="@+id/textSender"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textColor="#80FFFFFF"
             android:textSize="12sp"
-            android:textColor="#666"
-            android:layout_marginStart="10dp"
-            android:layout_marginBottom="4dp"/>
+            android:paddingStart="8dp"
+            android:paddingBottom="2dp"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/textMessage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:padding="12dp"
-            android:background="@drawable/message_bubble"/>
+            android:maxWidth="280dp"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:lineSpacingExtra="2dp"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:background="@drawable/message_bubble" />
 
         <TextView
             android:id="@+id/textTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="10sp"
-            android:textColor="#999"
+            android:textColor="#80FFFFFF"
+            android:textSize="11sp"
             android:layout_gravity="end"
-            android:layout_marginTop="4dp" />
-
+            android:paddingTop="2dp" />
 
     </LinearLayout>
 

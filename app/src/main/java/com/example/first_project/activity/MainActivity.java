@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_chat);
 
 
 
@@ -46,9 +46,10 @@ public class MainActivity extends AppCompatActivity {
 
 //        Button button = findViewById(R.id.btn_Back);
 //        Button btnThrid = findViewById(R.id.btn_thirdActivity);
-        recyclerView = findViewById(R.id.recyclerViewMessages);
-        editMessage = findViewById(R.id.editMessage);
+        recyclerView = findViewById(R.id.recyclerMessages);
+        editMessage = findViewById(R.id.editTextMessage);
         ImageButton btnSend = findViewById(R.id.btnSend);
+        ImageButton btnBack = findViewById(R.id.btnBack);
 
 
         adapter = new MessageAdapter(messages);
@@ -109,13 +110,15 @@ public class MainActivity extends AppCompatActivity {
 //            }, 2000 );
         });
 
-        Button btn_Back = findViewById(R.id.btn_Back);
 
-        Intent intentToRegistration = new Intent(MainActivity.this, RegistrationActivity.class);
 
-        btn_Back.setOnClickListener(v -> {
-            startActivity(intentToRegistration);
-            finish();
+        btnBack.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(this, ChatListActivity.class));
+                finish();
+            } catch (Exception e) {
+                finish();
+            }
         });
 //
 //        btnThrid.setOnClickListener(v ->{
