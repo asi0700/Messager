@@ -2,162 +2,232 @@ package com.example.first_project.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.widget.Button;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.EditText;
-import android.widget.ImageButton;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.first_project.R;
-import com.example.first_project.adapter.MessageAdapter;
-import com.example.first_project.model.Message;
-import com.google.firebase.firestore.CollectionReference;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.Query;
+import com.example.first_project.adapter.ChatsAdapter;
+import com.example.first_project.model.ChatItem;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "Start";
+    private RecyclerView recyclerChats;
+    private ChatsAdapter adapter;
+    private EditText editTextSearch;
+    private FloatingActionButton fabNewChat;
 
-    private RecyclerView recyclerView;
-    private MessageAdapter adapter;
-    private EditText editMessage;
-    private List<Message> messages = new ArrayList<>();
-
-    // работа с Firestore(Firebase)
-    private FirebaseFirestore db;
-    private CollectionReference messageRef;
+    private final List<ChatItem> allChats = new ArrayList<>();
+    private final List<ChatItem> filteredChats = new ArrayList<>();
+    private DatabaseReference userChatRef;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected  void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_chat);
+        setContentView(R.layout.activity_chat_list);
+
+        initViews();
+        setupRecyclerView();
+        setupSearch();
+        setupToolbar();
+        loadUserChats();
+
+        fabNewChat.setOnClickListener(v -> {
+            startActivity(new Intent(this, SearchActivity.class));
+        });
+
+    }
+
+    private void setupToolbar() {
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+    }
 
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
 
-        Log.d(TAG, "onCreate: Activityyy created");
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.menu_logout) {
+            showLogoutConfirmation();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 
-//        Button button = findViewById(R.id.btn_Back);
-//        Button btnThrid = findViewById(R.id.btn_thirdActivity);
-        recyclerView = findViewById(R.id.recyclerMessages);
-        editMessage = findViewById(R.id.editTextMessage);
-        ImageButton btnSend = findViewById(R.id.btnSend);
-        ImageButton btnBack = findViewById(R.id.btnBack);
+    private void showLogoutConfirmation() {
+        new AlertDialog.Builder(this)
+                .setTitle("Выход из аккаунта")
+                .setMessage("Вы уверены, что хотите выйти?")
+                .setPositiveButton("Выйти", (dialog, which) -> logoutUser())
+                .setNegativeButton("Отмена", null)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
 
 
-        adapter = new MessageAdapter(messages);
-        recyclerView.setAdapter(adapter);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+    private void logoutUser() {
+        FirebaseAuth.getInstance().signOut();
 
-        messages.add(new Message("Friend", "I`m gaaaaaaaaaa"));
+
+        Intent intent = new Intent(this, RegistrationActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+
+        Toast.makeText(this, "Вы вышли из аккаунта", Toast.LENGTH_SHORT).show();
+    }
+
+    private void initViews(){
+        recyclerChats = findViewById(R.id.recyclerChats);
+        editTextSearch = findViewById(R.id.editTextSearch);
+        fabNewChat = findViewById(R.id.fabNewChat);
+    }
+
+    private  void setupRecyclerView() {
+        recyclerChats.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new ChatsAdapter(filteredChats, item -> {
+            openChat(item);
+        });
+        recyclerChats.setAdapter(adapter);
+    }
+
+    private void setupSearch() {
+        editTextSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filterChats(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+    }
+
+    private  void filterChats(String query) {
+        filteredChats.clear();
+
+        if (query.isEmpty()) {
+            filteredChats.addAll(allChats);
+        } else {
+            String lowerCaseQuery = query.toLowerCase();
+            for (ChatItem chat : allChats){
+                if (chat.getName().toLowerCase().contains(lowerCaseQuery)){
+                    filteredChats.add(chat);
+                }
+            }
+        }
         adapter.notifyDataSetChanged();
+    }
 
-//        Intent intentToSecond = new Intent(MainActivity.this,SecondActivity.class );
-//        Intent intentToThird = new Intent(MainActivity.this,ThirdActivity.class );
+    private void loadUserChats() {
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
+        userChatRef = FirebaseDatabase.getInstance(databaseUrl).getReference("user_chats").child(currentUserId);
 
+        userChatRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                allChats.clear();
+                filteredChats.clear();
 
-        //intentToSecond.putExtra("user_name", "Asror");
+                if (snapshot.exists()) {
 
-        db = FirebaseFirestore.getInstance();
-        messageRef = db.collection("messages");
-
-        messageRef.orderBy("timestamp", Query.Direction.ASCENDING)
-                .addSnapshotListener((snapshot,  error ) -> {
-                    if (error != null) {
-                        Log.w(TAG, "Ошибка Firestore", error);
-                        return;
+                    for (DataSnapshot chatSnapshot : snapshot.getChildren()) {
+                        String chatId = chatSnapshot.getKey();
+                        loadChatDetails(chatId);
                     }
-
-                    messages.clear();
-                    for (var document : snapshot) {
-                        Message msg = document.toObject(Message.class);
-                        messages.add(msg);
-                    }
-
-                    adapter.notifyDataSetChanged();
-                    if (!messages.isEmpty()) {
-                        recyclerView.scrollToPosition(messages.size() -1);
-                    }
-
-                });
-
-
-        btnSend.setOnClickListener(v -> {
-            String text = editMessage.getText().toString().trim();
-            if (!text.isEmpty()) {
-                Message msg = new Message("You", text);
-                messageRef.add(msg);
-                editMessage.setText("");
-//                recyclerView.scrollToPosition(adapter.getItemCount() -1);
+                } else {
+                    showTestChats();
+                }
             }
-//            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-//                if (text.equals("Привет")){
-//                    Message reply = new Message("Friend", "Привет!");
-//                    adapter.addMessage(reply);
-//                    recyclerView.scrollToPosition(adapter.getItemCount() -1);
-//                } else {
-//                    Message reply = new Message("Friend", "Давай, всё иди ");
-//                    adapter.addMessage(reply);
-//                    recyclerView.scrollToPosition(adapter.getItemCount()-1);
-//                }
-//            }, 2000 );
-        });
 
-
-
-        btnBack.setOnClickListener(v -> {
-            try {
-                startActivity(new Intent(this, ChatListActivity.class));
-                finish();
-            } catch (Exception e) {
-                finish();
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                showTestChats();
             }
         });
-//
-//        btnThrid.setOnClickListener(v ->{
-//            startActivity(intentToThird);
-//        });
-
-
     }
 
+    private  void loadChatDetails(String chatId) {
+        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
+        DatabaseReference chatRef  = FirebaseDatabase.getInstance(databaseUrl).getReference("chats").child(chatId);
+        chatRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()){
+                    String chatName = snapshot.child("participantNames").child(getOtherUserId(chatId)).getValue(String.class);
+                    String lastMessage = snapshot.child("lastMessage").getValue(String.class);
 
-    @Override
-    protected void onStart(){
-        super.onStart();
-        Log.d(TAG, "onStart: Activity created");
+                    if (chatName != null) {
+                        ChatItem chatItem = new ChatItem(chatId, chatName, lastMessage != null ? lastMessage : "Нет сообщений");
+                        allChats.add(chatItem);
+                        filteredChats.add(chatItem);
+                        adapter.notifyDataSetChanged();
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
     }
 
-    @Override
-    protected  void onResume(){
-        super.onResume();
-        Log.d(TAG, "onResume: Activity created");
+    private String getOtherUserId(String  chatId) {
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String[] users = chatId.split("_");
+        return users[0].equals(currentUserId) ? users[1] : users[0];
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        Log.d(TAG, "onPause: Activity created");
+    private void showTestChats() {
+        allChats.clear();
+        filteredChats.clear();
+
+        allChats.add(new ChatItem("chat1", "Gleb", "Active now"));
+        allChats.add(new ChatItem("chat2", "Семья", "Online"));
+        allChats.add(new ChatItem("chat3", "Bro", "What`s up bro?"));
+
+        filteredChats.addAll(allChats);
+        adapter.notifyDataSetChanged();
     }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        Log.d(TAG, "onStop: Activity created");
+    private void openChat(ChatItem chatItem) {
+        Intent openChat = new Intent(this, ChatActivity.class);
+        openChat.putExtra("chat_id", chatItem.getChatId());
+        openChat.putExtra("user_name", chatItem.getName());
+        startActivity(openChat);
     }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        Log.d(TAG, "onDestroy: Activity created");
-    }
-
 
 }

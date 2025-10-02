@@ -1,6 +1,5 @@
 package com.example.first_project.adapter;
 
-import android.graphics.Color;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -38,11 +37,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position){
         Message message = messages.get(position);
-        holder.textSender.setText(message.getSender());
+        holder.textSender.setText(message.getSenderName());
         holder.textMessage.setText(message.getText());
 
         holder.messageBubbleContainer.setBackground(null);
-        if (message.getSender().equals("You")) {
+        if (message.getSenderName().equals("You")) {
             holder.textMessage.setBackgroundResource(R.drawable.message_bubble);
             ((FrameLayout.LayoutParams) holder.messageBubbleContainer.getLayoutParams()).gravity = Gravity.END;
         } else {

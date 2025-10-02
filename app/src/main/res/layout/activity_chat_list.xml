@@ -19,7 +19,8 @@
             android:paddingStart="60dp"
             android:paddingEnd="12dp"
             app:title="Чаты"
-            app:titleTextColor="@android:color/white" />
+            app:titleTextColor="@android:color/white"
+            app:menu="@menu/main_menu" />
 
     </com.google.android.material.appbar.AppBarLayout>
 

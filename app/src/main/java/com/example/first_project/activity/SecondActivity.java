@@ -30,9 +30,7 @@ public class SecondActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         List<Message> messages = new ArrayList<>();
-        messages.add(new Message("Asi", "Hello hddfdkjbfh bghbdg df dfgdfg gfd hgdfg dghdg dg fdjhgbfdgdnfg gdufghdfgbd gdghuidg h  sjfsfj jbfuishfsf jbuyhe78rtge re gh vfffuidfhguidHello hddfdkjbfh bghbdg df dfgdfg gfd hgdfg dghdg dg fdjhgbfdgdnfg gdufghdfgbd gdghuidg h  sjfsfj jbfuishfsf jbuyhe78rtge re gh vfffuidfhguidHello hddfdkjbfh bghbdg df dfgdfg gfd hgdfg dghdg dg fdjhgbfdgdnfg gdufghdfgbd gdghuidg h  sjfsfj jbfuishfsf jbuyhe78rtge re gh vfffuidfhguid"));
-        messages.add(new Message("Gleb", "Hi!"));
-        messages.add(new Message("aaaa", "ertad!"));
+
 
         adapter = new MessageAdapter(messages);
         recyclerView.setAdapter(adapter);

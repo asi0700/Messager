@@ -3,6 +3,8 @@ package com.example.first_project.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,8 +48,12 @@ public class RegistrationActivity extends AppCompatActivity {
                         .addOnCompleteListener(this, task -> {
                             if (task.isSuccessful()) {
                                 Toast.makeText(this, "Аккаунт создан!", Toast.LENGTH_SHORT).show();
-                                startActivity(new Intent(this, MainActivity.class));
-                                finish();
+
+                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                    startActivity(new Intent(this, UsernameActivity.class));
+                                    finish();
+                                }, 500);
+
                             } else {
                                 Toast.makeText(this, "Ошикба!" + task.getException().getMessage(),
                                         Toast.LENGTH_SHORT).show();
