@@ -20,9 +20,11 @@ import java.util.Locale;
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
 
     private List<Message> messages;
+    private String currentUserId;
 
-    public MessageAdapter(List<Message> messages) {
+    public MessageAdapter(List<Message> messages, String currentUserId) {
         this.messages = messages;
+        this.currentUserId = currentUserId;
     }
 
     @NonNull
@@ -36,30 +38,62 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position){
+
         Message message = messages.get(position);
-        holder.textSender.setText(message.getSenderName());
+
         holder.textMessage.setText(message.getText());
 
-        holder.messageBubbleContainer.setBackground(null);
-        if (message.getSenderName().equals("You")) {
-            holder.textMessage.setBackgroundResource(R.drawable.message_bubble);
-            ((FrameLayout.LayoutParams) holder.messageBubbleContainer.getLayoutParams()).gravity = Gravity.END;
-        } else {
-            holder.textMessage.setBackgroundResource(R.drawable.message_bubble_friend);
-            ((FrameLayout.LayoutParams) holder.messageBubbleContainer.getLayoutParams()).gravity = Gravity.START;
+        if (message.getTimestamp() > 0) {
+            Date date = new Date(message.getTimestamp());
+            SimpleDateFormat formatter = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            String timeString = formatter.format(date);
+            holder.textTime.setText(timeString);
         }
 
-        Date date = new Date(message.getTimestamp());
-        SimpleDateFormat formatter = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        String  timeString = formatter.format(date);
-        holder.textTime.setText(timeString);
 
+        if (message.getSenderId().equals(currentUserId)) {
+
+            setupMyMessage(holder, message);
+        } else {
+
+            setupOtherMessage(holder, message);
+        }
     }
 
-    public void addMessage(Message  message) {
+    private void setupMyMessage(MessageViewHolder holder, Message message) {
+        ((FrameLayout.LayoutParams) holder.messageBubbleContainer.getLayoutParams()).gravity = Gravity.END;
+
+
+        holder.textMessage.setBackgroundResource(R.drawable.message_bubble);
+
+        holder.textMessage.setGravity(Gravity.END);
+        holder.textTime.setGravity(Gravity.END);
+
+        holder.textSender.setVisibility(View.GONE);
+
+        holder.textMessage.setPadding(12, 8, 12, 8);
+    }
+
+    private void setupOtherMessage(MessageViewHolder holder, Message message) {
+
+        ((FrameLayout.LayoutParams) holder.messageBubbleContainer.getLayoutParams()).gravity = Gravity.START;
+
+        holder.textMessage.setBackgroundResource(R.drawable.message_bubble_friend);
+
+        holder.textMessage.setGravity(Gravity.START);
+        holder.textTime.setGravity(Gravity.START);
+
+        holder.textSender.setVisibility(View.VISIBLE);
+        holder.textSender.setText(message.getSenderName());
+
+        holder.textMessage.setPadding(12, 8, 12, 8);
+    }
+
+    public void  addMessage(Message message) {
         messages.add(message);
         notifyItemInserted(messages.size() -1);
     }
+
 
     @Override
     public int getItemCount() {

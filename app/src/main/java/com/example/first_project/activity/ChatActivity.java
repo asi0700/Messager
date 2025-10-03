@@ -46,6 +46,7 @@ public class ChatActivity extends AppCompatActivity {
 
     private String chatId;
     private String otherUserName;
+    private String currentUserId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +57,7 @@ public class ChatActivity extends AppCompatActivity {
         Intent intent = getIntent();
         chatId = intent.getStringExtra("chat_id");
         otherUserName = intent.getStringExtra("user_name");
+        currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
         Log.d(TAG, "onCreate: Activityyy created " + "Chat ID" + chatId + " c" +" User " + otherUserName  );
 
@@ -86,7 +88,7 @@ public class ChatActivity extends AppCompatActivity {
 
         }
 
-        adapter = new MessageAdapter(messages);
+        adapter = new MessageAdapter(messages, currentUserId);
         recyclerView.setAdapter(adapter);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -188,7 +190,7 @@ public class ChatActivity extends AppCompatActivity {
         String currentUserName = FirebaseAuth.getInstance().getCurrentUser().getDisplayName();
 
         if (currentUserName == null || currentUserName.isEmpty()) {
-            currentUserName = "You";
+            currentUserName = "  ";
         }
 
         String messageId = messageRef.push().getKey();
