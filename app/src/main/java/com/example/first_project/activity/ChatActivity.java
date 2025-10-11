@@ -141,7 +141,7 @@ public class ChatActivity extends AppCompatActivity {
 
 
         btnBack.setOnClickListener(v -> {
-            startActivity(new Intent(this, ChatListActivity.class));
+            startActivity(new Intent(this, MainActivity.class));
            finish();
         });
 //

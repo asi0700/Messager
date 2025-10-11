@@ -61,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+
+
     private void setupToolbar() {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -75,12 +77,23 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.menu_logout) {
+        int id = item.getItemId();
+
+        if (id == R.id.menu_profile) {
+            openProfile();
+            return true;
+        } else if (id == R.id.menu_logout) {
             showLogoutConfirmation();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
+
+    private void openProfile() {
+        Intent intent = new Intent(this, ProfileActivity.class);
+        startActivity(intent);
+    }
+
 
     private void showLogoutConfirmation() {
         new AlertDialog.Builder(this)
