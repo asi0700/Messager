@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Три точки (overflow menu) -->
+    <item
+        android:id="@+id/menu_more"
+        android:icon="@android:drawable/ic_menu_more"
+        android:title="Еще"
+        app:showAsAction="always" />
+
+    <!-- Скрытые пункты меню -->
+    <item
+        android:id="@+id/menu_profile"
+        android:icon="@drawable/ic_person"
+        android:title="Профиль"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_logout"
+        android:icon="@android:drawable/ic_lock_power_off"
+        android:title="Выйти"
+        app:showAsAction="never" />
+
+</menu>

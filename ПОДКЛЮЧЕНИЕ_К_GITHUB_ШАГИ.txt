@@ -1,0 +1,70 @@
+===========================================
+ПОДКЛЮЧЕНИЕ К GITHUB РЕПОЗИТОРИЮ
+===========================================
+
+ШАГ 1: Найдите URL вашего репозитория на GitHub
+-------------------------------------------------
+1. Зайдите на GitHub.com и войдите в аккаунт
+2. Откройте нужный репозиторий
+3. Нажмите зеленую кнопку "Code"
+4. Скопируйте URL (HTTPS или SSH)
+
+Примеры URL:
+- HTTPS: https://github.com/username/repository-name.git
+- SSH: git@github.com:username/repository-name.git
+
+ШАГ 2: Подключите удаленный репозиторий
+-----------------------------------------
+Выполните команду (замените URL на ваш):
+
+git remote add origin https://github.com/ВАШ_USERNAME/НАЗВАНИЕ_РЕПОЗИТОРИЯ.git
+
+ШАГ 3: Проверьте подключение
+-----------------------------
+git remote -v
+
+Должно показать ваш репозиторий.
+
+ШАГ 4: Получите код из GitHub (если там уже есть файлы)
+---------------------------------------------------------
+git pull origin main --allow-unrelated-histories
+
+или
+
+git pull origin master --allow-unrelated-histories
+
+ШАГ 5: Добавьте файлы и отправьте на GitHub
+---------------------------------------------
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git push -u origin main
+
+===========================================
+ЕСЛИ РЕПОЗИТОРИЯ ЕЩЕ НЕТ НА GITHUB
+===========================================
+
+1. Зайдите на GitHub.com
+2. Нажмите "+" в правом верхнем углу → "New repository"
+3. Введите название репозитория
+4. НЕ добавляйте README, .gitignore или лицензию (у вас уже есть файлы)
+5. Нажмите "Create repository"
+6. Скопируйте URL репозитория
+7. Выполните ШАГ 2 выше
+
+===========================================
+АУТЕНТИФИКАЦИЯ В GITHUB
+===========================================
+
+При первом push Git запросит:
+- Username: ваш GitHub username
+- Password: используйте Personal Access Token (НЕ пароль!)
+
+Как создать Personal Access Token:
+1. GitHub → Settings → Developer settings
+2. Personal access tokens → Tokens (classic)
+3. Generate new token (classic)
+4. Выберите права: repo (полный доступ)
+5. Скопируйте токен и используйте как пароль
+
+
