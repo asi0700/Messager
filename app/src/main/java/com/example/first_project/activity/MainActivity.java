@@ -20,13 +20,14 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.first_project.R;
 import com.example.first_project.adapter.ChatsAdapter;
 import com.example.first_project.model.ChatItem;
+import com.example.first_project.network.ApiClient;
+import com.example.first_project.network.ApiService;
+import com.example.first_project.network.SessionManager;
+import com.example.first_project.network.dto.ChatDto;
+import com.example.first_project.network.dto.ChatsResponse;
+import com.example.first_project.network.dto.MessageResponse;
+import com.example.first_project.network.dto.StatusRequest;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,10 +42,9 @@ public class MainActivity extends AppCompatActivity {
 
     private final List<ChatItem> allChats = new ArrayList<>();
     private final List<ChatItem> filteredChats = new ArrayList<>();
-    private DatabaseReference userChatRef;
-
-    private DatabaseReference userStatusRef;
     private String currentUserId;
+    private ApiService api;
+    private SessionManager session;
     
     @Override
     protected  void onCreate(Bundle savedInstanceState) {
@@ -52,12 +52,14 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_chat_list);
 
-        currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
-        userStatusRef = FirebaseDatabase.getInstance(databaseUrl)
-                .getReference("users")
-                .child(currentUserId)
-                .child("status");
+        session = new SessionManager(this);
+        api = ApiClient.get(this);
+        currentUserId = session.getUserId();
+        if (currentUserId == null) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
 
         initViews();
         setupRecyclerView();
@@ -73,19 +75,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Set user as online
-        if (userStatusRef != null) {
-            userStatusRef.setValue("Online");
-        }
+        updateStatus("Online");
     }
     
     @Override
     protected void onPause() {
         super.onPause();
-        // Set user as offline
-        if (userStatusRef != null) {
-            userStatusRef.setValue("Offline");
-        }
+        updateStatus("Offline");
     }
 
 
@@ -191,102 +187,31 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadUserChats() {
-        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
-        userChatRef = FirebaseDatabase.getInstance(databaseUrl).getReference("user_chats").child(currentUserId);
-
-        userChatRef.addValueEventListener(new ValueEventListener() {
+        api.getUserChats(currentUserId).enqueue(new retrofit2.Callback<ChatsResponse>() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
+            public void onResponse(retrofit2.Call<ChatsResponse> call, retrofit2.Response<ChatsResponse> response) {
                 allChats.clear();
                 filteredChats.clear();
-
-                if (snapshot.exists()) {
-
-                    for (DataSnapshot chatSnapshot : snapshot.getChildren()) {
-                        String chatId = chatSnapshot.getKey();
-                        loadChatDetails(chatId);
+                if (response.isSuccessful() && response.body() != null && response.body().chats != null) {
+                    for (ChatDto dto : response.body().chats) {
+                        ChatItem chatItem = new ChatItem(
+                                dto.chatId,
+                                dto.name != null ? dto.name : "Пользователь",
+                                dto.lastMessage != null ? dto.lastMessage : "Нет сообщений",
+                                dto.lastMessageTime
+                        );
+                        chatItem.setOtherUserId(dto.otherUserId);
+                        allChats.add(chatItem);
                     }
+                    sortChatsByTime();
                 } else {
                     showTestChats();
                 }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
+            public void onFailure(retrofit2.Call<ChatsResponse> call, Throwable t) {
                 showTestChats();
-            }
-        });
-    }
-
-    private  void loadChatDetails(String chatId) {
-        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
-        DatabaseReference chatRef  = FirebaseDatabase.getInstance(databaseUrl).getReference("chats").child(chatId);
-        chatRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (snapshot.exists()){
-                    String otherUserId = getOtherUserId(chatId);
-                    String chatName = snapshot.child("participantNames").child(otherUserId).getValue(String.class);
-                    String lastMessage = snapshot.child("lastMessage").getValue(String.class);
-                    Long lastMessageTime = snapshot.child("lastMessagetime").getValue(Long.class);
-
-                    if (chatName != null) {
-                        ChatItem chatItem = new ChatItem(
-                            chatId, 
-                            chatName, 
-                            lastMessage != null ? lastMessage : "Нет сообщений",
-                            lastMessageTime != null ? lastMessageTime : 0L
-                        );
-                        
-                        // Set the other user ID for status tracking
-                        chatItem.setOtherUserId(otherUserId);
-                        
-                        // Add to chat list
-                        allChats.add(chatItem);
-                        
-                        // Check online status
-                        checkUserOnlineStatus(chatItem);
-                        
-                        // Sort chats by timestamp (newest first)
-                        sortChatsByTime();
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-
-            }
-        });
-    }
-    
-    private void checkUserOnlineStatus(ChatItem chatItem) {
-        if (chatItem.getOtherUserId() == null) {
-            return;
-        }
-        
-        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
-        DatabaseReference userStatusRef = FirebaseDatabase.getInstance(databaseUrl)
-                .getReference("users")
-                .child(chatItem.getOtherUserId())
-                .child("status");
-        
-        userStatusRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (snapshot.exists()) {
-                    String status = snapshot.getValue(String.class);
-                    boolean isOnline = status != null && status.equals("Online");
-                    
-                    // Update chat item online status
-                    chatItem.setOnline(isOnline);
-                    adapter.notifyDataSetChanged();
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                // Handle error
             }
         });
     }
@@ -336,6 +261,18 @@ public class MainActivity extends AppCompatActivity {
         openChat.putExtra("chat_id", chatItem.getChatId());
         openChat.putExtra("user_name", chatItem.getName());
         startActivity(openChat);
+    }
+
+    private void updateStatus(String status) {
+        if (currentUserId == null) return;
+        api.updateStatus(currentUserId, new StatusRequest(status))
+                .enqueue(new retrofit2.Callback<MessageResponse>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<MessageResponse> call, retrofit2.Response<MessageResponse> response) { }
+
+                    @Override
+                    public void onFailure(retrofit2.Call<MessageResponse> call, Throwable t) { }
+                });
     }
 
 }

@@ -12,15 +12,14 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.first_project.R;
 import com.example.first_project.adapter.UsersAdapter;
-import com.example.first_project.model.Chat;
 import com.example.first_project.model.User;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import com.example.first_project.network.ApiClient;
+import com.example.first_project.network.ApiService;
+import com.example.first_project.network.SessionManager;
+import com.example.first_project.network.dto.ChatStartRequest;
+import com.example.first_project.network.dto.ChatStartResponse;
+import com.example.first_project.network.dto.UserDto;
+import com.example.first_project.network.dto.UsersResponse;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,18 +30,24 @@ import java.util.Map;
 public class SearchActivity extends AppCompatActivity {
     private SearchView searchView;
     private RecyclerView recyclerUsers;
-    private DatabaseReference usersRef;
     private List<User> users = new ArrayList<>();
     private UsersAdapter adapter;
+    private ApiService api;
+    private SessionManager session;
+    private String currentUserId;
 
     @Override
     protected  void  onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
-
-        // Используем тот же URL Realtime Database, что и в UsernameActivity
-        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
-        usersRef = FirebaseDatabase.getInstance(databaseUrl).getReference("users");
+        api = ApiClient.get(this);
+        session = new SessionManager(this);
+        currentUserId = session.getUserId();
+        if (currentUserId == null) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
 
         initView();
         setupRecyclerView();
@@ -83,34 +88,29 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void searchUsers(String username) {
-        usersRef.orderByChild("username")
-                .startAt(username)
-                .endAt(username + "\uf8ff")
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        users.clear();
-                        String currentUserId = getCurrentUserId();
-
-                        for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
-                            User user = dataSnapshot.getValue(User.class);
-                            if (user != null && !user.getUserId().equals(currentUserId)){
-                                users.add(user);
-                            }
+        api.searchUsers(username).enqueue(new retrofit2.Callback<UsersResponse>() {
+            @Override
+            public void onResponse(retrofit2.Call<UsersResponse> call, retrofit2.Response<UsersResponse> response) {
+                users.clear();
+                if (response.isSuccessful() && response.body() != null && response.body().users != null) {
+                    for (UserDto dto : response.body().users) {
+                        if (dto.id != null && !dto.id.equals(currentUserId)) {
+                            User u = new User(dto.id, dto.email, dto.username);
+                            u.setStatus(dto.status);
+                            u.setDisplayName(dto.displayName);
+                            u.setProfileImage(dto.profileImageUrl);
+                            users.add(u);
                         }
-                        adapter.notifyDataSetChanged();
                     }
+                }
+                adapter.notifyDataSetChanged();
+            }
 
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(SearchActivity.this, "ОШибка поиска", Toast.LENGTH_SHORT).show();
-                    }
-                });
-    }
-
-    private String getCurrentUserId(){
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        return  user != null ? user.getUid() : "";
+            @Override
+            public void onFailure(retrofit2.Call<UsersResponse> call, Throwable t) {
+                Toast.makeText(SearchActivity.this, "Ошибка поиска: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void onUserClick(User user) {
@@ -118,77 +118,27 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void createChatWithUser(User otherUser) {
-        String currentUserId = getCurrentUserId();
-        String chatId = generateChatId(currentUserId, otherUser.getUserId());
-
-        String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
-        DatabaseReference chatsRef = FirebaseDatabase.getInstance(databaseUrl).getReference("chats");
-        DatabaseReference userChatsRef = FirebaseDatabase.getInstance(databaseUrl).getReference("user_chats");
-        DatabaseReference currentUserRef = FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(currentUserId);
-
-        // Получаем имя текущего пользователя из Firebase
-        currentUserRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String currentUserName = "Me";
-                if (snapshot.exists()) {
-                    User currentUser = snapshot.getValue(User.class);
-                    if (currentUser != null && currentUser.getUsername() != null) {
-                        currentUserName = currentUser.getUsername();
-                    }
-                }
-
-                // Создаем новый объект чата
-                Map<String, String> participantNames = new HashMap<>();
-                participantNames.put(currentUserId, currentUserName);
-                participantNames.put(otherUser.getUserId(), otherUser.getUsername());
-
-                List<String> participants = Arrays.asList(currentUserId, otherUser.getUserId());
-
-                Chat chat = new Chat(chatId, participants, participantNames);
-
-                chatsRef.child(chatId).addListenerForSingleValueEvent(new ValueEventListener() {
+        api.startChat(new ChatStartRequest(otherUser.getUserId()))
+                .enqueue(new retrofit2.Callback<ChatStartResponse>() {
                     @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        if (!snapshot.exists()) {
-                            chatsRef.child(chatId).setValue(chat);
+                    public void onResponse(retrofit2.Call<ChatStartResponse> call, retrofit2.Response<ChatStartResponse> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            String chatId = response.body().chatId;
+                            Intent intent = new Intent(SearchActivity.this, ChatActivity.class);
+                            intent.putExtra("chat_id", chatId);
+                            intent.putExtra("user_name", otherUser.getUsername());
+                            startActivity(intent);
+                            finish();
                         } else {
-                            Map<String, Object> meta = new HashMap<>();
-                            meta.put("chatId", chatId);
-                            meta.put("participants", participants);
-                            meta.put("participantNames", participantNames);
-                            chatsRef.child(chatId).updateChildren(meta);
+                            Toast.makeText(SearchActivity.this, "Не удалось создать чат", Toast.LENGTH_SHORT).show();
                         }
-
-                        userChatsRef.child(currentUserId).child(chatId).setValue(true);
-                        userChatsRef.child(otherUser.getUserId()).child(chatId).setValue(true);
-
-                        Toast.makeText(SearchActivity.this, "Чат создан с " + otherUser.getUsername(), Toast.LENGTH_SHORT).show();
-
-                        Intent intent = new Intent(SearchActivity.this, ChatActivity.class);
-                        intent.putExtra("chat_id", chatId);
-                        intent.putExtra("user_name", otherUser.getUsername());
-                        startActivity(intent);
-                        finish();
                     }
 
                     @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(SearchActivity.this, "Ошибка создания чата: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    public void onFailure(retrofit2.Call<ChatStartResponse> call, Throwable t) {
+                        Toast.makeText(SearchActivity.this, "Ошибка: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(SearchActivity.this, "Ошибка получения данных пользователя: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-
-    private  String generateChatId(String user1, String user2) {
-        return user1.compareTo(user2) < 0 ? user1 +"_" + user2 : user2 + "_" + user1;
     }
 
 }

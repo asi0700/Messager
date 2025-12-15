@@ -6,8 +6,7 @@ import android.os.Handler;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+import com.example.first_project.network.SessionManager;
 
 public class SplashActivity extends AppCompatActivity {
     @Override
@@ -21,10 +20,8 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void checkAuthAndRedirect() {
-        FirebaseAuth auth = FirebaseAuth.getInstance();
-        FirebaseUser currentUser = auth.getCurrentUser();
-
-        if ( currentUser != null) {
+        SessionManager session = new SessionManager(this);
+        if (session.getToken() != null) {
             startActivity(new Intent(this, MainActivity.class));
         } else  {
             startActivity(new Intent(this, RegistrationActivity.class));

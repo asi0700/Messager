@@ -24,19 +24,13 @@ import com.example.first_project.R;
 import com.example.first_project.adapter.MessageAdapter;
 import com.example.first_project.model.Message;
 import com.example.first_project.model.User;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ServerValue;
-import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.firestore.CollectionReference;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.Query;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
+import com.example.first_project.network.ApiClient;
+import com.example.first_project.network.ApiService;
+import com.example.first_project.network.SessionManager;
+import com.example.first_project.network.dto.ChatMessageRequest;
+import com.example.first_project.network.dto.MessageDto;
+import com.example.first_project.network.dto.MessageResponse;
+import com.example.first_project.network.dto.MessagesResponse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,15 +48,11 @@ public class ChatActivity extends AppCompatActivity {
 //    private FirebaseFirestore db;
 //    private CollectionReference messageRef;
 
-    // Работа с Reatime Database
-    private DatabaseReference messageRef;
-    private FirebaseDatabase database;
-    private FirebaseStorage storage;
-    private StorageReference storageRef;
-
     private String chatId;
     private String otherUserName;
     private String currentUserId;
+    private ApiService api;
+    private SessionManager session;
 
     // ActivityResultLauncher для выбора изображения
     private ActivityResultLauncher<String> imagePickerLauncher;
@@ -77,7 +67,14 @@ public class ChatActivity extends AppCompatActivity {
         Intent intent = getIntent();
         chatId = intent.getStringExtra("chat_id");
         otherUserName = intent.getStringExtra("user_name");
-        currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        session = new SessionManager(this);
+        api = ApiClient.get(this);
+        currentUserId = session.getUserId();
+        if (currentUserId == null) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
 
         Log.d(TAG, "onCreate: Activityyy created " + "Chat ID" + chatId + " c" +" User " + otherUserName  );
 
@@ -120,23 +117,6 @@ public class ChatActivity extends AppCompatActivity {
 
 
         //intentToSecond.putExtra("user_name", "Asror");
-
-        try {
-            String databaseUrl = "https://messenger-86a14-default-rtdb.europe-west1.firebasedatabase.app";
-            database = FirebaseDatabase.getInstance(databaseUrl);
-            storage = FirebaseStorage.getInstance();
-
-            if (chatId != null) {
-                messageRef = database.getReference("chats").child(chatId).child("messages");
-                storageRef = storage.getReference().child("chat_images").child(chatId);
-            } else {
-                messageRef = database.getReference("messages");
-                storageRef = storage.getReference().child("chat_images");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Database " + e.getMessage());
-            return;
-        }
 
         // Инициализация ActivityResultLauncher для выбора изображения
         imagePickerLauncher = registerForActivityResult(
@@ -203,127 +183,65 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void loadMessages() {
-        if (messageRef == null) {
-            Log.e(TAG, "messageRef is null, невозможно загрузить сообщение ");
-            return;
-        }
-
-        messageRef.orderByChild("timestamp").addValueEventListener(new ValueEventListener() {
+        api.getMessages(chatId, 200).enqueue(new retrofit2.Callback<MessagesResponse>() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
+            public void onResponse(retrofit2.Call<MessagesResponse> call, retrofit2.Response<MessagesResponse> response) {
                 messages.clear();
-                for (DataSnapshot dataSnapshot : snapshot.getChildren()){
-                    Message msg = dataSnapshot.getValue(Message.class);
-                    if (msg != null ) {
-                        // Обработка timestamp - если он 0 или null, устанавливаем текущее время
-                        // ServerValue.TIMESTAMP автоматически конвертируется в long при чтении
-                        if (msg.getTimestamp() == 0) {
-                            Object timestampObj = dataSnapshot.child("timestamp").getValue();
-                            if (timestampObj instanceof Long) {
-                                msg.setTimestamp((Long) timestampObj);
-                            } else if (timestampObj instanceof Map) {
-                                // Если это ServerValue.TIMESTAMP (Map), используем текущее время
-                                msg.setTimestamp(System.currentTimeMillis());
-                            } else {
-                                msg.setTimestamp(System.currentTimeMillis());
-                            }
-                        }
+                if (response.isSuccessful() && response.body() != null && response.body().messages != null) {
+                    for (MessageDto dto : response.body().messages) {
+                        Message msg = new Message(dto.senderId, "", dto.text, dto.chatId);
+                        msg.setMessageId(dto.id);
+                        msg.setTimestamp(dto.timestamp);
+                        msg.setImageUrl(dto.imageUrl);
+                        msg.setType(dto.imageUrl != null ? "image" : "text");
                         messages.add(msg);
-                        Log.d(TAG, "Заргузка сообщений: " + msg.getText() + ", timestamp: " + msg.getTimestamp());
                     }
-                }
-                // Явная сортировка по timestamp для гарантии правильного порядка
-                messages.sort((m1, m2) -> Long.compare(m1.getTimestamp(), m2.getTimestamp()));
-                adapter.notifyDataSetChanged();
-                if (!messages.isEmpty()) {
-                    recyclerView.scrollToPosition(messages.size() -1);
+                    messages.sort((m1, m2) -> Long.compare(m1.getTimestamp(), m2.getTimestamp()));
+                    adapter.notifyDataSetChanged();
+                    if (!messages.isEmpty()) {
+                        recyclerView.scrollToPosition(messages.size() -1);
+                    }
                 }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG,  "ОШИбка загрузки сообщений: " + error.getMessage());
+            public void onFailure(retrofit2.Call<MessagesResponse> call, Throwable t) {
+                Log.e(TAG, "Ошибка загрузки сообщений " + t.getMessage());
             }
         });
     }
 
 
     private void sendMessage(String text) {
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        String currentUserName = FirebaseAuth.getInstance().getCurrentUser().getDisplayName();
+        api.sendTextMessage(chatId, new ChatMessageRequest(text))
+                .enqueue(new retrofit2.Callback<MessageResponse>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<MessageResponse> call, retrofit2.Response<MessageResponse> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            MessageDto dto = response.body().message;
+                            Message msg = new Message(dto.senderId, "", dto.text, dto.chatId);
+                            msg.setMessageId(dto.id);
+                            msg.setTimestamp(dto.timestamp);
+                            msg.setImageUrl(dto.imageUrl);
+                            msg.setType(dto.imageUrl != null ? "image" : "text");
+                            messages.add(msg);
+                            messages.sort((m1, m2) -> Long.compare(m1.getTimestamp(), m2.getTimestamp()));
+                            adapter.notifyDataSetChanged();
+                            recyclerView.scrollToPosition(messages.size() -1);
+                        } else {
+                            Toast.makeText(ChatActivity.this, "Ошибка отправки", Toast.LENGTH_SHORT).show();
+                        }
+                    }
 
-        if (currentUserName == null || currentUserName.isEmpty()) {
-            currentUserName = "  ";
-        }
-
-        String messageId = messageRef.push().getKey();
-
-        Message msg = new Message(currentUserId, currentUserName, text, chatId);
-        // Используем ServerValue.TIMESTAMP для гарантии правильного порядка
-        Map<String, Object> timestampMap = new HashMap<>();
-        timestampMap.put("timestamp", ServerValue.TIMESTAMP);
-
-        if (messageId != null) {
-            Map<String, Object> messageMap = new HashMap<>();
-            messageMap.put("senderId", msg.getSenderId());
-            messageMap.put("senderName", msg.getSenderName());
-            messageMap.put("text", msg.getText());
-            messageMap.put("chatId", msg.getChatId());
-            messageMap.put("type", msg.getType());
-            messageMap.put("imageUrl", msg.getImageUrl());
-            messageMap.put("timestamp", ServerValue.TIMESTAMP);
-
-            messageRef.child(messageId).setValue(messageMap)
-                    .addOnSuccessListener(aVoid -> {
-                        updateLastMessage(text);
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "ОШибка при отправке сообщений " + e.getMessage());
-                    });
-        }
+                    @Override
+                    public void onFailure(retrofit2.Call<MessageResponse> call, Throwable t) {
+                        Toast.makeText(ChatActivity.this, "Сервер недоступен: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void sendImageMessage(String imageUrl, String caption) {
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        String currentUserName = FirebaseAuth.getInstance().getCurrentUser().getDisplayName();
-
-        if (currentUserName == null || currentUserName.isEmpty()) {
-            currentUserName = "  ";
-        }
-
-        String messageId = messageRef.push().getKey();
-
-        if (messageId != null) {
-            Map<String, Object> messageMap = new HashMap<>();
-            messageMap.put("senderId", currentUserId);
-            messageMap.put("senderName", currentUserName);
-            messageMap.put("text", caption != null ? caption : "");
-            messageMap.put("chatId", chatId);
-            messageMap.put("type", "image");
-            messageMap.put("imageUrl", imageUrl);
-            messageMap.put("timestamp", ServerValue.TIMESTAMP);
-
-            messageRef.child(messageId).setValue(messageMap)
-                    .addOnSuccessListener(aVoid -> {
-                        updateLastMessage("Фото");
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Ошибка при отправке изображения " + e.getMessage());
-                        Toast.makeText(this, "Ошибка при отправке изображения", Toast.LENGTH_SHORT).show();
-                    });
-        }
-    }
-
-    private void updateLastMessage(String lastMessage) {
-        if (chatId != null) {
-            try {
-                DatabaseReference chatRef = database.getReference("chats").child(chatId);
-                chatRef.child("lastMessage").setValue(lastMessage);
-                chatRef.child("lastMessagetime").setValue(ServerValue.TIMESTAMP);
-            } catch (Exception e) {
-                Log.e(TAG, "Ошибка  обновлений последних сообщений " + e.getMessage());
-            }
-        }
+        // handled by server endpoint when we upload via multipart in uploadImageToServer
     }
 
     private boolean checkImagePermission() {
@@ -353,39 +271,44 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void uploadImageToFirebase(Uri imageUri) {
-        if (storageRef == null) {
-            Log.e(TAG, "storageRef is null");
+        Toast.makeText(this, "Загрузка изображения...", Toast.LENGTH_SHORT).show();
+        java.io.File file;
+        try {
+            file = com.example.first_project.util.FileUtils.copyUriToCache(this, imageUri);
+        } catch (Exception e) {
+            Toast.makeText(this, "Не удалось прочитать файл", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Создаем уникальное имя файла
-        String fileName = "image_" + System.currentTimeMillis() + ".jpg";
-        StorageReference imageRef = storageRef.child(fileName);
+        okhttp3.RequestBody reqFile = okhttp3.RequestBody.create(okhttp3.MediaType.parse("image/*"), file);
+        okhttp3.MultipartBody.Part body = okhttp3.MultipartBody.Part.createFormData("file", file.getName(), reqFile);
 
-        // Показываем индикатор загрузки
-        Toast.makeText(this, "Загрузка изображения...", Toast.LENGTH_SHORT).show();
+        api.sendImageMessage(chatId, body, "")
+                .enqueue(new retrofit2.Callback<MessageResponse>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<MessageResponse> call, retrofit2.Response<MessageResponse> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            MessageDto dto = response.body().message;
+                            Message msg = new Message(dto.senderId, "", dto.text, dto.chatId);
+                            msg.setMessageId(dto.id);
+                            msg.setTimestamp(dto.timestamp);
+                            msg.setImageUrl(dto.imageUrl);
+                            msg.setType("image");
+                            messages.add(msg);
+                            messages.sort((m1, m2) -> Long.compare(m1.getTimestamp(), m2.getTimestamp()));
+                            adapter.notifyDataSetChanged();
+                            recyclerView.scrollToPosition(messages.size() -1);
+                            Toast.makeText(ChatActivity.this, "Изображение отправлено", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(ChatActivity.this, "Ошибка отправки изображения", Toast.LENGTH_SHORT).show();
+                        }
+                    }
 
-        // Загружаем изображение
-        UploadTask uploadTask = imageRef.putFile(imageUri);
-
-        uploadTask.addOnSuccessListener(taskSnapshot -> {
-            // Получаем URL загруженного изображения
-            imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                String imageUrl = uri.toString();
-                sendImageMessage(imageUrl, null);
-                Toast.makeText(this, "Изображение отправлено", Toast.LENGTH_SHORT).show();
-            }).addOnFailureListener(e -> {
-                Log.e(TAG, "Ошибка получения URL изображения: " + e.getMessage());
-                Toast.makeText(this, "Ошибка загрузки изображения", Toast.LENGTH_SHORT).show();
-            });
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Ошибка загрузки изображения: " + e.getMessage());
-            Toast.makeText(this, "Ошибка загрузки изображения", Toast.LENGTH_SHORT).show();
-        }).addOnProgressListener(snapshot -> {
-            // Можно добавить ProgressBar для отображения прогресса
-            double progress = (100.0 * snapshot.getBytesTransferred()) / snapshot.getTotalByteCount();
-            Log.d(TAG, "Прогресс загрузки: " + progress + "%");
-        });
+                    @Override
+                    public void onFailure(retrofit2.Call<MessageResponse> call, Throwable t) {
+                        Toast.makeText(ChatActivity.this, "Сервер недоступен: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     @Override

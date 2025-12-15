@@ -14,15 +14,19 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.first_project.R;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.auth.FirebaseAuth;
+import com.example.first_project.network.ApiClient;
+import com.example.first_project.network.ApiService;
+import com.example.first_project.network.SessionManager;
+import com.example.first_project.network.dto.AuthRequest;
+import com.example.first_project.network.dto.AuthResponse;
 
 public class RegistrationActivity extends AppCompatActivity {
-    private FirebaseAuth mAuth;
-
     private TextInputEditText emailField;
     private TextInputEditText passwordField;
     private TextInputEditText confirmPasswordField;
     private TextView linkLogin;
+    private ApiService api;
+    private SessionManager session;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,7 +34,8 @@ public class RegistrationActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_registration);
 
-        mAuth = FirebaseAuth.getInstance();
+        api = ApiClient.get(this);
+        session = new SessionManager(this);
 
         MaterialButton buttonRegister = findViewById(R.id.buttonRegister);
         emailField = findViewById(R.id.editTextEmail);
@@ -44,19 +49,31 @@ public class RegistrationActivity extends AppCompatActivity {
             String confirmPassword = confirmPasswordField.getText().toString().trim();
 
             if (validate(email, password, confirmPassword)) {
-                mAuth.createUserWithEmailAndPassword(email, password)
-                        .addOnCompleteListener(this, task -> {
-                            if (task.isSuccessful()) {
-                                Toast.makeText(this, "Аккаунт создан!", Toast.LENGTH_SHORT).show();
+                api.register(new AuthRequest(email, password, email))
+                        .enqueue(new retrofit2.Callback<AuthResponse>() {
+                            @Override
+                            public void onResponse(retrofit2.Call<AuthResponse> call, retrofit2.Response<AuthResponse> response) {
+                                if (response.isSuccessful() && response.body() != null) {
+                                    AuthResponse body = response.body();
+                                    session.saveSession(
+                                            body.token,
+                                            body.user.id,
+                                            body.user.username,
+                                            body.user.displayName != null ? body.user.displayName : body.user.username
+                                    );
+                                    Toast.makeText(RegistrationActivity.this, "Аккаунт создан!", Toast.LENGTH_SHORT).show();
+                                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                        startActivity(new Intent(RegistrationActivity.this, MainActivity.class));
+                                        finish();
+                                    }, 500);
+                                } else {
+                                    Toast.makeText(RegistrationActivity.this, "Ошибка регистрации", Toast.LENGTH_SHORT).show();
+                                }
+                            }
 
-                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                    startActivity(new Intent(this, UsernameActivity.class));
-                                    finish();
-                                }, 500);
-
-                            } else {
-                                Toast.makeText(this, "Ошикба!" + task.getException().getMessage(),
-                                        Toast.LENGTH_SHORT).show();
+                            @Override
+                            public void onFailure(retrofit2.Call<AuthResponse> call, Throwable t) {
+                                Toast.makeText(RegistrationActivity.this, "Сервер недоступен: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                             }
                         });
             }
